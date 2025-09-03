@@ -1,0 +1,76 @@
+# ecommerce_dashboard.py
+import streamlit as st
+import requests
+import pandas as pd
+
+API_URL = "http://127.0.0.1:8000"
+
+st.set_page_config(page_title="E-Commerce Inventory System", layout="wide")
+st.title("🛒 E-Commerce Inventory & Order Management")
+
+tabs = st.tabs(["Product CRUD", "Order Processing", "Reporting Dashboard"])
+
+# -------------------------------
+# Product CRUD
+# -------------------------------
+with tabs[0]:
+    st.header("📦 Product Inventory")
+    action = st.selectbox("Select Action", ["List Products", "Add Product", "Update Product", "Delete Product"])
+    
+    if action == "List Products":
+        resp = requests.get(f"{API_URL}/products/")
+        df = pd.DataFrame(resp.json())
+        st.table(df)
+    
+    elif action == "Add Product":
+        name = st.text_input("Product Name")
+        price = st.number_input("Price", 0.0)
+        stock = st.number_input("Stock Quantity", 0)
+        restock = st.number_input("Restock Threshold", 0)
+        if st.button("Add Product"):
+            prod_data = {"name": name, "price": price, "stock": stock, "restock_threshold": restock}
+            resp = requests.post(f"{API_URL}/products/", json=prod_data)
+            st.write(resp.json())
+    
+    elif action == "Update Product":
+        prod_id = st.number_input("Product ID", 1)
+        name = st.text_input("Product Name")
+        price = st.number_input("Price", 0.0)
+        stock = st.number_input("Stock Quantity", 0)
+        restock = st.number_input("Restock Threshold", 0)
+        if st.button("Update Product"):
+            prod_data = {"name": name, "price": price, "stock": stock, "restock_threshold": restock}
+            resp = requests.put(f"{API_URL}/products/{prod_id}", json=prod_data)
+            st.write(resp.json())
+    
+    elif action == "Delete Product":
+        prod_id = st.number_input("Product ID to Delete", 1)
+        if st.button("Delete Product"):
+            resp = requests.delete(f"{API_URL}/products/{prod_id}")
+            st.write(resp.json())
+
+# -------------------------------
+# Order Processing
+# -------------------------------
+with tabs[1]:
+    st.header("📝 Order Processing")
+    product_id = st.number_input("Product ID", 1)
+    quantity = st.number_input("Quantity", 1)
+    if st.button("Place Order"):
+        resp = requests.post(f"{API_URL}/orders/", json={"product_id": product_id, "quantity": quantity})
+        st.write(resp.json())
+
+# -------------------------------
+# Reporting Dashboard
+# -------------------------------
+with tabs[2]:
+    st.header("📊 Reporting Dashboard")
+    resp = requests.get(f"{API_URL}/products/")
+    df = pd.DataFrame(resp.json())
+    if not df.empty:
+        st.metric("Total Products", len(df))
+        st.metric("Low Stock Alerts", (df['stock'] <= df['restock_threshold']).sum())
+        st.subheader("Products Below Restock Threshold")
+        st.table(df[df['stock'] <= df['restock_threshold']])
+    else:
+        st.info("No products available")
